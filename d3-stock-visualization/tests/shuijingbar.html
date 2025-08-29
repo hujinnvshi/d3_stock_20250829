@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>施华洛世奇水晶K线图</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background: radial-gradient(circle at center, #0c0d21 0%, #1a1c3a 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: rgba(16, 18, 42, 0.7);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(120, 150, 255, 0.05) 0%, transparent 60%);
+            z-index: 0;
+            animation: rotateLight 20s linear infinite;
+            pointer-events: none;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0 40px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #fbc2eb, #a6c1ee, #12c2e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(166, 193, 238, 0.3);
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #9ba9ca;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 500px;
+            background: rgba(20, 22, 46, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+        
+        .toolbar {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .timeframe-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 50px;
+            color: #a6c1ee;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .timeframe-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        .timeframe-btn:hover::before {
+            left: 100%;
+        }
+        
+        .timeframe-btn:hover {
+            background: rgba(100, 150, 255, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(100, 150, 255, 0.2);
+        }
+        
+        .timeframe-btn.active {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: #1a1a2e;
+            border: none;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0, 242, 254, 0.3);
+        }
+        
+        .stock-info {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+            position: relative;
+            z-index: 2;
+            flex-wrap: wrap;
+        }
+        
+        .info-card {
+            background: rgba(35, 37, 65, 0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            min-width: 180px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .info-label {
+            font-size: 0.9rem;
+            color: #9ba9ca;
+            margin-bottom: 8px;
+        }
+        
+        .info-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #4facfe;
+        }
+        
+        .info-value.red {
+            color: #ff0844;
+        }
+        
+        .info-value.green {
+            color: #43e97b;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #586a9c;
+            font-size: 0.9rem;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .sparkle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px white;
+            animation: sparkle 2s infinite;
+            z-index: 1;
+        }
+        
+        @keyframes rotateLight {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes sparkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        
+        @keyframes crystalGlow {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
+        }
+        
+        @media (max-width: 768px) {
+            .toolbar {
+                gap: 10px;
+            }
+            
+            .timeframe-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .chart-container {
+                height: 400px;
+            }
+            
+            .stock-info {
+                gap: 15px;
+            }
+            
+            .info-card {
+                min-width: 140px;
+                padding: 12px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>施华洛世奇水晶K线图</h1>
+            <p class="subtitle">水晶般闪耀的金融数据可视化体验</p>
+        </div>
+        
+        <div class="toolbar">
+            <button class="timeframe-btn active">分时</button>
+            <button class="timeframe-btn">1天</button>
+            <button class="timeframe-btn">1周</button>
+            <button class="timeframe-btn">1月</button>
+            <button class="timeframe-btn">3月</button>
+            <button class="timeframe-btn">1年</button>
+        </div>
+        
+        <div class="chart-container" id="chart-container">
+            <svg id="crystal-chart" width="100%" height="100%"></svg>
+        </div>
+        
+        <div class="stock-info">
+            <div class="info-card">
+                <div class="info-label">当前价格</div>
+                <div class="info-value">¥168.42</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">今日涨跌</div>
+                <div class="info-value green">+2.35%</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">成交量</div>
+                <div class="info-value">184.6万</div>
+            </div>
+            <div class="info-card">
+                <div class="info-label">最高价</div>
+                <div class="info-value">¥170.25</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>施华洛世奇水晶K线图 | 基于D3.js开发 | 数据更新时间: 2023-10-17 15:30</p>
+        </div>
+    </div>
+
+    <script>
+        // 生成模拟股票数据
+        function generateStockData(days = 30, initialPrice = 150) {
+            const data = [];
+            let price = initialPrice;
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+            
+            for (let i = 0; i < days; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                
+                // 随机生成价格波动
+                const volatility = 1.2 + Math.random() * 1.8;
+                const change = (Math.random() - 0.5) * volatility;
+                
+                const open = price;
+                price = price + change;
+                
+                // 生成高点 (比收盘价高)
+                const high = Math.max(open, price) + Math.random() * 5;
+                
+                // 生成低点 (比收盘价低)
+                const low = Math.min(open, price) - Math.random() * 5;
+                
+                const close = price;
+                
+                // 随机生成成交量 (百万)
+                const volume = Math.round(50 + Math.random() * 150);
+                
+                data.push({
+                    date: date,
+                    open: open,
+                    high: high,
+                    low: low,
+                    close: close,
+                    volume: volume,
+                    // 标记涨跌
+                    direction: close >= open ? 'up' : 'down'
+                });
+            }
+            
+            return data;
+        }
+        
+        // 创建施华洛世奇水晶效果K线图
+        function createCrystalCandlestickChart() {
+            // 生成模拟数据
+            const data = generateStockData();
+            
+            // 清除现有图表
+            d3.select("#crystal-chart").selectAll("*").remove();
+            
+            // 设置尺寸和边距
+            const margin = { top: 30, right: 40, bottom: 60, left: 70 };
+            const width = document.getElementById('chart-container').clientWidth - margin.left - margin.right;
+            const height = document.getElementById('chart-container').clientHeight - margin.top - margin.bottom;
+            
+            // 创建SVG容器
+            const svg = d3.select("#crystal-chart")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            // 添加背景网格
+            const gridPattern = svg.append("defs")
+                .append("pattern")
+                .attr("id", "grid-pattern")
+                .attr("width", 40)
+                .attr("height", 40)
+                .attr("patternUnits", "userSpaceOnUse");
+            
+            gridPattern.append("rect")
+                .attr("width", 40)
+                .attr("height", 40)
+                .attr("fill", "rgba(16, 18, 42, 0.5)");
+            
+            gridPattern.append("path")
+                .attr("d", "M 40 0 L 0 0 0 40")
+                .attr("fill", "none")
+                .attr("stroke", "rgba(100, 150, 255, 0.1)")
+                .attr("stroke-width", 1);
+            
+            svg.append("rect")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("fill", "url(#grid-pattern)");
+            
+            // 设置X轴比例尺（时间）
+            const xScale = d3.scaleTime()
+                .domain(d3.extent(data, d => d.date))
+                .range([0, width]);
+            
+            // 设置Y轴比例尺（价格）
+            const maxPrice = d3.max(data, d => d.high);
+            const minPrice = d3.min(data, d => d.low);
+            const yScale = d3.scaleLinear()
+                .domain([minPrice * 0.98, maxPrice * 1.02])
+                .range([height, 0])
+                .nice();
+            
+            // 添加网格线
+            const xAxisGrid = d3.axisBottom(xScale)
+                .ticks(10)
+                .tickSize(-height)
+                .tickFormat('');
+                
+            const yAxisGrid = d3.axisLeft(yScale)
+                .ticks(10)
+                .tickSize(-width)
+                .tickFormat('');
+            
+            svg.append("g")
+                .attr("class", "grid")
+                .attr("transform", `translate(0,${height})`)
+                .call(xAxisGrid)
+                .selectAll("line")
+                .attr("stroke", "rgba(100, 150, 255, 0.15)");
+                
+            svg.append("g")
+                .attr("class", "grid")
+                .call(yAxisGrid)
+                .selectAll("line")
+                .attr("stroke", "rgba(100, 150, 255, 0.15)");
+            
+            // 添加X轴
+            const xAxis = d3.axisBottom(xScale)
+                .ticks(d3.timeDay.every(5))
+                .tickFormat(d3.timeFormat('%m/%d'));
+            
+            svg.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(xAxis)
+                .selectAll("text")
+                .attr("fill", "#9ba9ca");
+            
+            // 添加Y轴
+            const yAxis = d3.axisRight(yScale)
+                .ticks(8);
+            
+            svg.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(${width},0)`)
+                .call(yAxis)
+                .selectAll("text")
+                .attr("fill", "#9ba9ca");
+            
+            // 添加轴标题
+            svg.append("text")
+                .attr("transform", `translate(${width + 25},${height/2}) rotate(90)`)
+                .attr("text-anchor", "middle")
+                .text("价格 (¥)")
+                .attr("fill", "#9ba9ca");
+            
+            // 创建水晶效果渐变
+            const defs = svg.append("defs");
+            
+            // 阳线渐变 - 水晶蓝
+            const upGradient = defs.append("linearGradient")
+                .attr("id", "crystal-up")
+                .attr("x1", "0%")
+                .attr("y1", "0%")
+                .attr("x2", "0%")
+                .attr("y2", "100%");
+            
+            upGradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "rgba(0, 242, 254, 0.7)");
+            
+            upGradient.append("stop")
+                .attr("offset", "50%")
+                .attr("stop-color", "rgba(79, 172, 254, 0.6)");
+            
+            upGradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "rgba(0, 242, 254, 0.8)");
+            
+            // 阴线渐变 - 水晶红
+            const downGradient = defs.append("linearGradient")
+                .attr("id", "crystal-down")
+                .attr("x1", "0%")
+                .attr("y1", "0%")
+                .attr("x2", "0%")
+                .attr("y2", "100%");
+            
+            downGradient.append("stop")
+                .attr("offset", "0%")
+                .attr("stop-color", "rgba(255, 8, 68, 0.7)");
+            
+            downGradient.append("stop")
+                .attr("offset", "50%")
+                .attr("stop-color", "rgba(255, 177, 153, 0.6)");
+            
+            downGradient.append("stop")
+                .attr("offset", "100%")
+                .attr("stop-color", "rgba(255, 8, 68, 0.8)");
+            
+            // 创建水晶高光效果
+            const crystalFilter = defs.append("filter")
+                .attr("id", "crystal-filter")
+                .attr("x", "-20%")
+                .attr("y", "-20%")
+                .attr("width", "140%")
+                .attr("height", "140%");
+            
+            crystalFilter.append("feGaussianBlur")
+                .attr("in", "SourceAlpha")
+                .attr("stdDeviation", "2")
+                .attr("result", "blur");
+            
+            crystalFilter.append("feSpecularLighting")
+                .attr("in", "blur")
+                .attr("surfaceScale", "5")
+                .attr("specularConstant", "0.8")
+                .attr("specularExponent", "20")
+                .attr("result", "specOut")
+                .append("fePointLight")
+                .attr("x", "0")
+                .attr("y", "0")
+                .attr("z", "200");
+            
+            crystalFilter.append("feComposite")
+                .attr("in", "specOut")
+                .attr("in2", "SourceGraphic")
+                .attr("operator", "arithmetic")
+                .attr("k1", "0")
+                .attr("k2", "1")
+                .attr("k3", "1")
+                .attr("k4", "0")
+                .attr("result", "compositeOut");
+            
+            // 计算K线柱宽度
+            const barWidth = width / data.length * 0.6;
+            
+            // 绘制K线柱
+            data.forEach((d, i) => {
+                const x = xScale(d.date) - barWidth/2;
+                const top = yScale(Math.max(d.open, d.close));
+                const bottom = yScale(Math.min(d.open, d.close));
+                const barHeight = Math.abs(top - bottom);
+                const isUp = d.direction === 'up';
+                
+                // 绘制K线实体 - 水晶柱体
+                const rect = svg.append("rect")
+                    .attr("x", x)
+                    .attr("y", top)
+                    .attr("width", barWidth)
+                    .attr("height", barHeight)
+                    .attr("rx", 4)
+                    .attr("ry", 4)
+                    .attr("fill", isUp ? "url(#crystal-up)" : "url(#crystal-down)")
+                    .attr("filter", "url(#crystal-filter)")
+                    .attr("stroke", isUp ? "rgba(0, 242, 254, 0.5)" : "rgba(255, 8, 68, 0.5)")
+                    .attr("stroke-width", 1)
+                    .attr("opacity", 0.9);
+                
+                // 添加水晶高光效果
+                const highlightHeight = barHeight * 0.3;
+                svg.append("rect")
+                    .attr("x", x)
+                    .attr("y", top)
+                    .attr("width", barWidth)
+                    .attr("height", highlightHeight)
+                    .attr("rx", 4)
+                    .attr("ry", 4)
+                    .attr("fill", "rgba(255, 255, 255, 0.4)");
+                
+                // 添加水晶折射效果
+                for (let j = 0; j < 3; j++) {
+                    const refractionWidth = barWidth * 0.15;
+                    const refractionX = x + barWidth * 0.1 + j * barWidth * 0.3;
+                    
+                    svg.append("rect")
+                        .attr("x", refractionX)
+                        .attr("y", top + highlightHeight)
+                        .attr("width", refractionWidth)
+                        .attr("height", barHeight - highlightHeight)
+                        .attr("rx", 2)
+                        .attr("ry", 2)
+                        .attr("fill", "rgba(255, 255, 255, 0.2)");
+                }
+                
+                // 添加闪烁点
+                const sparkleCount = Math.floor(Math.random() * 3) + 2;
+                for (let s = 0; s < sparkleCount; s++) {
+                    const sparkleX = x + Math.random() * barWidth;
+                    const sparkleY = top + Math.random() * barHeight;
+                    const sparkleSize = 2 + Math.random() * 3;
+                    const sparkleDelay = Math.random() * 2;
+                    
+                    const sparkle = svg.append("circle")
+                        .attr("cx", sparkleX)
+                        .attr("cy", sparkleY)
+                        .attr("r", sparkleSize)
+                        .attr("fill", "white")
+                        .attr("opacity", 0)
+                        .attr("filter", "url(#glow-filter)");
+                    
+                    // 添加闪烁动画
+                    sparkle.transition()
+                        .delay(sparkleDelay * 1000)
+                        .duration(500)
+                        .attr("opacity", 1)
+                        .transition()
+                        .duration(500)
+                        .attr("opacity", 0)
+                        .on("end", function() {
+                            d3.select(this).remove();
+                        });
+                }
+                
+                // 绘制上下影线
+                const highY = yScale(d.high);
+                const lowY = yScale(d.low);
+                const midX = x + barWidth/2;
+                
+                // 上影线 (从最高价到实体顶)
+                svg.append("line")
+                    .attr("x1", midX)
+                    .attr("x2", midX)
+                    .attr("y1", highY)
+                    .attr("y2", top)
+                    .attr("stroke", isUp ? "rgba(0, 242, 254, 0.6)" : "rgba(255, 8, 68, 0.6)")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "2,2");
+                
+                // 下影线 (从实体底到最低价)
+                svg.append("line")
+                    .attr("x1", midX)
+                    .attr("x2", midX)
+                    .attr("y1", bottom)
+                    .attr("y2", lowY)
+                    .attr("stroke", isUp ? "rgba(0, 242, 254, 0.6)" : "rgba(255, 8, 68, 0.6)")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "2,2");
+            });
+            
+            // 添加移动平均线
+            const movingAvg = [];
+            for (let i = 4; i < data.length; i++) {
+                const avg = (data[i].close + data[i-1].close + data[i-2].close + data[i-3].close) / 4;
+                movingAvg.push({date: data[i].date, value: avg});
+            }
+            
+            const maLine = d3.line()
+                .x(d => xScale(d.date))
+                .y(d => yScale(d.value))
+                .curve(d3.curveMonotoneX);
+            
+            svg.append("path")
+                .datum(movingAvg)
+                .attr("d", maLine)
+                .attr("fill", "none")
+                .attr("stroke", "#a78bfa")
+                .attr("stroke-width", 3)
+                .attr("opacity", 0.7)
+                .attr("stroke-dasharray", "5,5");
+            
+            // 添加发光滤镜
+            const glowFilter = defs.append("filter")
+                .attr("id", "glow-filter")
+                .attr("x", "-50%")
+                .attr("y", "-50%")
+                .attr("width", "200%")
+                .attr("height", "200%");
+            
+            glowFilter.append("feGaussianBlur")
+                .attr("stdDeviation", "3")
+                .attr("result", "coloredBlur");
+            
+            const feMerge = glowFilter.append("feMerge");
+            feMerge.append("feMergeNode")
+                .attr("in", "coloredBlur");
+            feMerge.append("feMergeNode")
+                .attr("in", "SourceGraphic");
+            
+            // 添加随机闪烁效果
+            setInterval(() => {
+                const randomBarIndex = Math.floor(Math.random() * data.length);
+                const d = data[randomBarIndex];
+                const x = xScale(d.date) - barWidth/2;
+                const top = yScale(Math.max(d.open, d.close));
+                const barHeight = Math.abs(top - yScale(Math.min(d.open, d.close)));
+                
+                // 创建大型闪烁点
+                const sparkleX = x + Math.random() * barWidth;
+                const sparkleY = top + Math.random() * barHeight;
+                const sparkleSize = 5 + Math.random() * 8;
+                
+                const sparkle = svg.append("circle")
+                    .attr("cx", sparkleX)
+                    .attr("cy", sparkleY)
+                    .attr("r", sparkleSize)
+                    .attr("fill", "white")
+                    .attr("opacity", 0)
+                    .attr("filter", "url(#glow-filter)");
+                
+                // 添加闪烁动画
+                sparkle.transition()
+                    .duration(300)
+                    .attr("opacity", 1)
+                    .attr("r", sparkleSize * 1.5)
+                    .transition()
+                    .duration(700)
+                    .attr("opacity", 0)
+                    .attr("r", sparkleSize * 0.5)
+                    .on("end", function() {
+                        d3.select(this).remove();
+                    });
+            }, 800);
+        }
+        
+        // 添加工具栏事件
+        document.querySelectorAll('.timeframe-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.timeframe-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                createCrystalCandlestickChart();
+            });
+        });
+        
+        // 页面加载完成后初始化图表
+        window.onload = function() {
+            createCrystalCandlestickChart();
+            
+            // 添加背景闪烁效果
+            setInterval(() => {
+                const container = document.querySelector('.chart-container');
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                
+                sparkle.style.left = `${Math.random() * 100}%`;
+                sparkle.style.top = `${Math.random() * 100}%`;
+                sparkle.style.width = `${5 + Math.random() * 10}px`;
+                sparkle.style.height = sparkle.style.width;
+                
+                container.appendChild(sparkle);
+                
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    sparkle.remove();
+                }, 2000);
+            }, 300);
+        };
+    </script>
+</body>
+</html>
