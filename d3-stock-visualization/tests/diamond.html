@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>银光闪闪的钻石选择器</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .header {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ffffff, #d4d4d4, #a8a8a8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #c0c0ff;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+        
+        .diamond-display {
+            flex: 1;
+            min-width: 400px;
+            height: 500px;
+            background: rgba(16, 14, 41, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .diamond-display::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            animation: rotateLight 20s linear infinite;
+            z-index: 0;
+        }
+        
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(16, 14, 41, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .control-group {
+            background: rgba(40, 36, 89, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .control-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #a0a0ff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-title svg {
+            width: 24px;
+            height: 24px;
+            fill: #a0a0ff;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            color: #c0c0ff;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #302b63, #a78bfa);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            border: 2px solid #a78bfa;
+        }
+        
+        .diamond-info {
+            background: rgba(40, 36, 89, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .info-item {
+            background: rgba(60, 55, 120, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .info-label {
+            font-size: 0.9rem;
+            color: #a0a0ff;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        .price {
+            font-size: 2rem;
+            text-align: center;
+            margin-top: 15px;
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+        
+        .select-btn {
+            background: linear-gradient(135deg, #6a5af9, #a78bfa);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            box-shadow: 0 5px 15px rgba(106, 90, 249, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .select-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(106, 90, 249, 0.6);
+        }
+        
+        .diamond-svg {
+            position: relative;
+            z-index: 2;
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+        }
+        
+        .sparkle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px 2px white;
+            animation: sparkle 2s infinite;
+            z-index: 1;
+        }
+        
+        @keyframes rotateLight {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes sparkle {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .diamond-display {
+                min-width: 100%;
+                height: 400px;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>银光闪闪的钻石选择器</h1>
+        <p class="subtitle">使用D3.js可视化钻石的4C标准（切工、颜色、净度、克拉），选择您心仪的钻石</p>
+    </div>
+    
+    <div class="container">
+        <div class="diamond-display" id="diamond-container">
+            <!-- D3.js将在这里渲染钻石 -->
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,2L2,12L12,22L22,12L12,2Z"></path></svg>
+                    <span>钻石属性调整</span>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>切工 (Cut)</span>
+                        <span id="cut-value">理想 (Ideal)</span>
+                    </div>
+                    <input type="range" min="1" max="5" value="5" class="slider" id="cut-slider">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>颜色 (Color)</span>
+                        <span id="color-value">D (无色)</span>
+                    </div>
+                    <input type="range" min="1" max="7" value="1" class="slider" id="color-slider">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>净度 (Clarity)</span>
+                        <span id="clarity-value">FL (无瑕)</span>
+                    </div>
+                    <input type="range" min="1" max="6" value="1" class="slider" id="clarity-slider">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>克拉 (Carat)</span>
+                        <span id="carat-value">1.00 ct</span>
+                    </div>
+                    <input type="range" min="50" max="300" value="100" class="slider" id="carat-slider">
+                </div>
+            </div>
+            
+            <div class="diamond-info">
+                <div class="control-title">
+                    <svg viewBox="0 0 24 24"><path d="M11,15H13V17H11V15M11,7H13V13H11V7M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20Z"></path></svg>
+                    <span>钻石信息</span>
+                </div>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">形状</div>
+                        <div class="info-value" id="shape-value">圆形</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">切工等级</div>
+                        <div class="info-value" id="cut-grade">理想</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">颜色等级</div>
+                        <div class="info-value" id="color-grade">D</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">净度等级</div>
+                        <div class="info-value" id="clarity-grade">FL</div>
+                    </div>
+                </div>
+                
+                <div class="price" id="diamond-price">$5,420</div>
+            </div>
+            
+            <button class="select-btn">选择这颗钻石</button>
+        </div>
+    </div>
+
+    <script>
+        // 钻石数据模型
+        const diamondData = {
+            cut: 5, // 1-5 (差到理想)
+            color: 1, // 1-7 (D到M)
+            clarity: 1, // 1-6 (FL到I2)
+            carat: 1.0, // 0.5-3.0
+            shape: '圆形'
+        };
+        
+        // 切工等级映射
+        const cutGrades = {
+            1: '差 (Poor)',
+            2: '一般 (Fair)',
+            3: '良好 (Good)',
+            4: '非常好 (Very Good)',
+            5: '理想 (Ideal)'
+        };
+        
+        // 颜色等级映射
+        const colorGrades = {
+            1: 'D (无色)',
+            2: 'E',
+            3: 'F',
+            4: 'G (近无色)',
+            5: 'H',
+            6: 'I',
+            7: 'J'
+        };
+        
+        // 净度等级映射
+        const clarityGrades = {
+            1: 'FL (无瑕)',
+            2: 'IF (内无瑕)',
+            3: 'VVS1 (极微瑕)',
+            4: 'VVS2',
+            5: 'VS1 (微瑕)',
+            6: 'VS2'
+        };
+        
+        // 初始化D3.js
+        const container = d3.select("#diamond-container");
+        const svg = container.append("svg")
+            .attr("width", 400)
+            .attr("height", 400)
+            .attr("class", "diamond-svg");
+        
+        // 创建钻石形状
+        function createDiamond() {
+            svg.selectAll("*").remove();
+            
+            // 计算钻石尺寸（基于克拉）
+            const size = 80 + diamondData.carat * 40;
+            
+            // 创建钻石形状
+            const diamond = svg.append("polygon")
+                .attr("points", calculateDiamondPoints(size))
+                .attr("fill", getDiamondColor())
+                .attr("stroke", "#ffffff")
+                .attr("stroke-width", 1)
+                .attr("filter", "url(#diamond-glow)")
+                .attr("opacity", getDiamondOpacity());
+            
+            // 添加内部切面
+            addDiamondFacets(size);
+            
+            // 添加闪烁效果
+            addSparkles();
+            
+            // 更新信息显示
+            updateDiamondInfo();
+        }
+        
+        // 计算钻石的点位（八边形）
+        function calculateDiamondPoints(size) {
+            const centerX = 200;
+            const centerY = 200;
+            const points = [];
+            const angleStep = Math.PI / 4;
+            
+            for (let i = 0; i < 8; i++) {
+                const angle = i * angleStep - Math.PI / 2;
+                const x = centerX + size * Math.cos(angle);
+                const y = centerY + size * Math.sin(angle);
+                points.push(`${x},${y}`);
+            }
+            
+            return points.join(" ");
+        }
+        
+        // 获取钻石颜色（基于颜色等级）
+        function getDiamondColor() {
+            // 颜色等级越高（数值越小），钻石越无色
+            const colorIntensity = 0.1 + (diamondData.color - 1) * 0.1;
+            return `rgba(255, 255, 255, ${1 - colorIntensity})`;
+        }
+        
+        // 获取钻石透明度（基于净度）
+        function getDiamondOpacity() {
+            // 净度等级越高（数值越小），钻石越透明
+            return 0.8 + (diamondData.clarity - 1) * 0.03;
+        }
+        
+        // 添加钻石切面
+        function addDiamondFacets(size) {
+            const centerX = 200;
+            const centerY = 200;
+            
+            // 添加内部切面线
+            for (let i = 0; i < 8; i++) {
+                const angle = i * Math.PI / 4 - Math.PI / 2;
+                const innerSize = size * 0.7;
+                
+                const x1 = centerX + innerSize * Math.cos(angle);
+                const y1 = centerY + innerSize * Math.sin(angle);
+                
+                const nextAngle = (i + 2) % 8 * Math.PI / 4 - Math.PI / 2;
+                const x2 = centerX + innerSize * Math.cos(nextAngle);
+                const y2 = centerY + innerSize * Math.sin(nextAngle);
+                
+                svg.append("line")
+                    .attr("x1", centerX)
+                    .attr("y1", centerY)
+                    .attr("x2", x1)
+                    .attr("y2", y1)
+                    .attr("stroke", "rgba(255, 255, 255, 0.5)")
+                    .attr("stroke-width", 1);
+                
+                svg.append("line")
+                    .attr("x1", x1)
+                    .attr("y1", y1)
+                    .attr("x2", x2)
+                    .attr("y2", y2)
+                    .attr("stroke", "rgba(255, 255, 255, 0.5)")
+                    .attr("stroke-width", 1);
+            }
+        }
+        
+        // 添加闪烁效果
+        function addSparkles() {
+            // 添加滤镜效果（使钻石发光）
+            const defs = svg.append("defs");
+            
+            const filter = defs.append("filter")
+                .attr("id", "diamond-glow")
+                .attr("x", "-50%")
+                .attr("y", "-50%")
+                .attr("width", "200%")
+                .attr("height", "200%");
+            
+            filter.append("feGaussianBlur")
+                .attr("stdDeviation", "3")
+                .attr("result", "coloredBlur");
+            
+            const feMerge = filter.append("feMerge");
+            feMerge.append("feMergeNode")
+                .attr("in", "coloredBlur");
+            feMerge.append("feMergeNode")
+                .attr("in", "SourceGraphic");
+            
+            // 添加随机闪烁点
+            for (let i = 0; i < 8; i++) {
+                const size = Math.random() * 4 + 2;
+                const x = 150 + Math.random() * 100;
+                const y = 150 + Math.random() * 100;
+                const delay = Math.random() * 2;
+                
+                container.append("div")
+                    .attr("class", "sparkle")
+                    .style("width", `${size}px`)
+                    .style("height", `${size}px`)
+                    .style("left", `${x}px`)
+                    .style("top", `${y}px`)
+                    .style("animation-delay", `${delay}s`);
+            }
+        }
+        
+        // 更新钻石信息显示
+        function updateDiamondInfo() {
+            // 更新控制值显示
+            document.getElementById("cut-value").textContent = cutGrades[diamondData.cut];
+            document.getElementById("color-value").textContent = colorGrades[diamondData.color];
+            document.getElementById("clarity-value").textContent = clarityGrades[diamondData.clarity];
+            document.getElementById("carat-value").textContent = diamondData.carat.toFixed(2) + " ct";
+            
+            // 更新信息卡
+            document.getElementById("cut-grade").textContent = cutGrades[diamondData.cut].split(' ')[0];
+            document.getElementById("color-grade").textContent = colorGrades[diamondData.color].split(' ')[0];
+            document.getElementById("clarity-grade").textContent = clarityGrades[diamondData.clarity].split(' ')[0];
+            
+            // 计算价格（简化版）
+            const basePrice = 3000;
+            const cutMultiplier = [0.7, 0.8, 0.9, 1.0, 1.2][diamondData.cut - 1];
+            const colorMultiplier = [1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9][diamondData.color - 1];
+            const clarityMultiplier = [1.5, 1.4, 1.3, 1.2, 1.1, 1.0][diamondData.clarity - 1];
+            const caratMultiplier = Math.pow(diamondData.carat, 2);
+            
+            const price = basePrice * cutMultiplier * colorMultiplier * clarityMultiplier * caratMultiplier;
+            document.getElementById("diamond-price").textContent = `$${price.toFixed(0)}`;
+        }
+        
+        // 初始化滑块事件
+        function initSliders() {
+            // 切工滑块
+            d3.select("#cut-slider")
+                .on("input", function() {
+                    diamondData.cut = +this.value;
+                    createDiamond();
+                });
+            
+            // 颜色滑块
+            d3.select("#color-slider")
+                .on("input", function() {
+                    diamondData.color = +this.value;
+                    createDiamond();
+                });
+            
+            // 净度滑块
+            d3.select("#clarity-slider")
+                .on("input", function() {
+                    diamondData.clarity = +this.value;
+                    createDiamond();
+                });
+            
+            // 克拉滑块
+            d3.select("#carat-slider")
+                .on("input", function() {
+                    diamondData.carat = +this.value / 100;
+                    createDiamond();
+                });
+        }
+        
+        // 初始化
+        function init() {
+            createDiamond();
+            initSliders();
+            
+            // 添加一些随机闪烁效果
+            setInterval(() => {
+                addSparkles();
+            }, 2000);
+        }
+        
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
